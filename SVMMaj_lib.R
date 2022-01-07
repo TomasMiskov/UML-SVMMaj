@@ -5,17 +5,31 @@
 # Purpose: Functions librarY for minimizing SVM loss using majorization
 #----------------------------------------------------------------------
 
-#' SVM Loss Function
+#' Absolute SVM Loss Function
 #' 
-#' Compute the SVM loss function
+#' Compute the absolute SVM loss function
 #' 
 #' @param mX Matrix of regressors including a column of 1s
 #' @param vY Vector of outcome values (2 categories, -1 & 1)
 #' @param vV Vector of weights (+ a constant)
 #' @param dLambda Ridge penalization parameter lambda
-LossSVM <- function(mX, vY, vV, dLambda){
+AbsLossSVM <- function(mX, vY, vV, dLambda){
   vQ <- mX %*% vV                                                         
   dLoss <- sum(pmax(0, 1 - vY * vQ)) + dLambda * (t(vV[-1]) %*% vV[-1])
+  return(dLoss)
+}
+
+#' Quadratic SVM Loss Function
+#' 
+#' Compute the quadratic SVM loss function
+#' 
+#' @param mX Matrix of regressors including a column of 1s
+#' @param vY Vector of outcome values (2 categories, -1 & 1)
+#' @param vV Vector of weights (+ a constant)
+#' @param dLambda Ridge penalization parameter lambda
+QuadLossSVM <- function(mX, vY, vV, dLambda){
+  vQ <- mX %*% vV                                                         
+  dLoss <- sum(pmax(0, 1 - vY * vQ)^2) + dLambda * (t(vV[-1]) %*% vV[-1])
   return(dLoss)
 }
 
@@ -38,7 +52,7 @@ MajSVM <- function(mX, vY, dC = 1, vW = rep(1, ncol(mX) - 1),
   iN <- length(vY)
   iP <- ncol(mX)
   vV0 <- c(dC, vW)                      
-  dStartL <- LossSVM(mX, vY, vV0, dLambda)          #starting SVM loss value
+  dStartL <- AbsLossSVM(mX, vY, vV0, dLambda)          #starting SVM loss value
   dL0 <- dStartL
   dDecrease <- 0
   mP <- diag(iP)
@@ -57,14 +71,15 @@ MajSVM <- function(mX, vY, dC = 1, vW = rep(1, ncol(mX) - 1),
       vB <- vY * (vA + 0.25)
       mA <- diag(as.vector(vA))
       vV1 <- solve(t(mX) %*% mA %*% mX  + dLambda * mP, t(mX) %*% vB)
+      dL1 <- AbsLossSVM(mX, vY, vV1, dLambda)
     }
     
     if(hinge == 'quadratic'){
       vB <- ifelse((vY == -1 & vQ > -1) | (vY == 1 & vQ > 1), vY * 1, vQ)
       vV1 <- mZ %*% vB
+      dL1 <- QuadLossSVM(mX, vY, vV1, dLambda)
     }
     
-    dL1 <- LossSVM(mX, vY, vV1, dLambda)
     dDecrease <- (dL0 - dL1)/dL0
     
     dL0 <- dL1
