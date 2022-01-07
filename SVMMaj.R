@@ -11,20 +11,33 @@ pacman::p_load(SVMMaj)
 #------
 # DATA
 #------
-path <- "C:\\Users\\misko\\OneDrive\\Desktop\\BDS\\Block 3\\Unsupervised Machine Learning\\Week 1\\bank.RData"
-load(path)
-y <- bank$y
-X <- model.matrix(y ~., data = bank)
+load('bank.RData')
+prepData <- function(data, vInd){
+  vY <- ifelse(data$y == 'yes', 1, -1)
+  mX <- model.matrix(y ~., data = data)
+  
+  vY <- vY[vInd]
+  mX <- mX[vInd,]
+  
+  return(list('X' = mX, 'Y' = vY))
+}
+
+vInd <- sample.int(nrow(bank), 500)
+lData <- prepData(bank, vInd)
 
 #--------------
 #SVMMaj package
 #--------------
-benchmark <- svmmaj(X, y)
+benchmark <- svmmaj(lData$X, lData$Y, hinge = 'absolute', 
+                    convergence = 10^-4)
 summary(benchmark)
 plot(benchmark)
 
 #-------------------
 # Our implementation
 #-------------------
-y <- factor(y, levels = c('yes', 'no'), labels = c(1, -1))       #re-factor y into factors 1, -1
-model <- MajSVM()
+source("SVMMaj_lib.R")
+model <- MajSVM(lData$X, lData$Y, dEpsilon = 10^-4, hinge = 'absolute', silent = FALSE)
+model$w
+benchmark$beta
+abs(sum(model$w - benchmark$beta[-1]))
